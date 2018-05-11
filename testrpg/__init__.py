@@ -1,38 +1,54 @@
+from random import uniform
 from sys import exit
 
 import pygame
 
-from pygame_easy_event import PygameEasyEvent
+from rpgengine import Window
+from testrpg.constants import *
 
-pygame_easy_event = PygameEasyEvent()
+window = Window()
 
-size = width, height = 500, 400
-speed = [1, 1]
-black = 0, 0, 0
+size = width, height = START_SIZE
+speed = list(START_SPEED)
 
-screen = pygame.display.set_mode(size)
+screen = pygame.display.set_mode(size, pygame.RESIZABLE)
 
 ball = pygame.image.load("intro_ball.gif")
 ball_rect = ball.get_rect()
 
 
-def main_loop():
+@window.add_loop
+def _main_loop():
 	global ball_rect, speed
 	
 	ball_rect = ball_rect.move(speed)
-	if ball_rect.left < 0 or ball_rect.right > width:
+	
+	speed[0] += uniform(-MAX_ACCELERATION, MAX_ACCELERATION)
+	speed[1] += uniform(-MAX_ACCELERATION, MAX_ACCELERATION)
+	
+	if (ball_rect.left < 0 and speed[0] < 0) or (ball_rect.right > width and speed[0] > 0):
 		speed[0] = -speed[0]
-	if ball_rect.top < 0 or ball_rect.bottom > height:
+	
+	if (ball_rect.top < 0 and speed[1] < 0) or (ball_rect.bottom > height and speed[1] > 0):
 		speed[1] = -speed[1]
 	
-	screen.fill(black)
+	screen.fill(BACKGROUND)
 	screen.blit(ball, ball_rect)
 	pygame.display.flip()
 
 
-@pygame_easy_event.add_handler(pygame.QUIT)
+@window.add_handler(pygame.QUIT)
 def _on_quit(evt):
 	exit()
 
 
-pygame_easy_event.do_loop(main_loop)
+@window.add_handler(pygame.VIDEORESIZE)
+def _on_resize(evt):
+	global screen, size, width, height
+	
+	size = width, height = evt.size
+	screen = pygame.display.set_mode(size, pygame.RESIZABLE)
+
+
+if __name__ == '__main__':
+	window.run()
