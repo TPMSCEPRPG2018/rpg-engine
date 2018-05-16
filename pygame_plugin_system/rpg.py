@@ -9,51 +9,51 @@ __all__ = ['RPGWindow']
 
 
 class Player(pygame.sprite.Sprite):
-	def __init__(self, *groups, image, location, tilemap):
+	def __init__(self, *groups, image, location, window):
 		super().__init__(*groups)
 		self.image = image
 		self.rect = pygame.rect.Rect(location, self.image.get_size())
-		self.tilemap = tilemap
+		self.window = window
 	
 	def update(self, dt):
-		# last = self.rect.copy()
+		last = self.rect.copy()
 		
 		key = pygame.key.get_pressed()
 		
 		if key[pygame.K_UP]:
-			self.rect.y -= self.rect.height + 2
+			self.rect.y -= self.rect.height
 		if key[pygame.K_DOWN]:
-			self.rect.y += self.rect.height + 2
+			self.rect.y += self.rect.height
 		if key[pygame.K_LEFT]:
-			self.rect.x -= self.rect.height + 2
+			self.rect.x -= self.rect.width
 		if key[pygame.K_RIGHT]:
-			self.rect.x += self.rect.height + 2
+			self.rect.x += self.rect.width
 		
 		new = self.rect
-		self.resting = False
-		# for cell in self.tilemap.layers['triggers'].collide(new, 'blockers'):
-		# 	blockers = cell['blockers']
-		# 	if 'l' in blockers and last.right <= cell.left < new.right:
-		# 		new.right = cell.left
-		# 	if 'r' in blockers and cell.right <= new.left < last.left:
-		# 		new.left = cell.right
-		# 	if 't' in blockers and last.bottom <= cell.top < new.bottom:
-		# 		new.bottom = cell.top
-		# 	if 'b' in blockers and new.top < cell.bottom <= last.top:
-		# 		new.top = cell.bottom
 		
-		self.tilemap.set_focus(new.x, new.y)
+		for cell in self.window.tilemap.layers['triggers'].collide(new, 'blockers'):
+			if last.right <= cell.left <= new.right and new.top != cell.bottom and new.bottom != cell.top:
+				new.right = cell.left
+			if new.left <= cell.right <= last.left and new.top != cell.bottom and new.bottom != cell.top:
+				new.left = cell.right
+			if last.bottom <= cell.top <= new.bottom and new.left != cell.right and new.right != cell.left:
+				new.bottom = cell.top
+			if cell.top <= new.bottom <= last.top and new.left != cell.right and new.right != cell.left:
+				new.top = cell.bottom
+		
+		self.window.tilemap.set_focus(new.x, new.y)
 
 
 class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
-	def __init__(self, *, player_icon: pygame.Surface, **kwargs):
-		super().__init__(player_icon=player_icon, **kwargs)
+	def __init__(self, *, player_icon: pygame.Surface, tile_size: int = 1, **kwargs):
+		super().__init__(player_icon=player_icon, tile_size=tile_size, **kwargs)
 		
 		self.sprites = tmx.SpriteLayer()
 		self.tilemap.layers.append(self.sprites)
 		start_cell = self.tilemap.layers['triggers'].find('player')[0]
-		self.player = Player(self.sprites, image=player_icon.convert(), location=(start_cell.px, start_cell.py), tilemap=self.tilemap)
+		self.player = Player(self.sprites, image=player_icon.convert_alpha(), location=(start_cell.px, start_cell.py), window=self)
 		self.tilemap.set_focus(start_cell.px, start_cell.py, force=True)
+		self.tile_size = tile_size
 	
 	def main_loop(self, screen: pygame.Surface):
 		super().main_loop(screen)
