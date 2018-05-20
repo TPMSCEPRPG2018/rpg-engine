@@ -8,5 +8,5 @@ BASE_DIR = _Path(__file__).parent
 RESOURCES_DIR = BASE_DIR / 'resources'
 
 BALL_PATH = RESOURCES_DIR / 'intro_ball.gif'
-MAP_PATH = RESOURCES_DIR / 'map.tmx'
+MAP_PATH = RESOURCES_DIR / 'outside.tmx'
 PLAYER_ICON_PATH = RESOURCES_DIR / 'smiley.png'
