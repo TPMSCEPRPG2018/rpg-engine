@@ -58,7 +58,7 @@ class Player(pygame.sprite.Sprite):
 		
 		if entries:
 			entry = choice(entries)
-			self.window.set_tilemap(map_path=entry['destinationMap'], position=(entry['destinationX'], entry['destinationY']))
+			self.window.set_tilemap(map_path=entry['destinationMap'], start_cell=(entry['destinationX'], entry['destinationY']))
 		
 		self.window.tilemap.set_focus(self.rect.x, self.rect.y)
 
@@ -83,9 +83,13 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
 		
 		self.sprites = tmx.SpriteLayer()
 		self.tilemap.layers.append(self.sprites)
-		start_cell = choice(self.tilemap.layers['triggers'].match(isStart='true')) if start_cell is None else start_cell
-		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), location=(start_cell.px, start_cell.py), window=self)
-		self.tilemap.set_focus(start_cell.px, start_cell.py, force=True)
+		
+		if start_cell is None:
+			start_cell = choice(self.tilemap.layers['triggers'].match(isStart='true'))
+			start_cell = start_cell.px, start_cell.py
+		
+		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), location=start_cell, window=self)
+		self.tilemap.set_focus(*start_cell, force=True)
 	
 	def main_loop(self, screen: pygame.Surface):
 		super().main_loop(screen)
