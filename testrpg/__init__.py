@@ -14,4 +14,5 @@ class TestRPGWindow(RPGWindow):
 def main():
 	chdir(RESOURCES_DIR)
 	player_icon = pygame.transform.smoothscale(pygame.image.load(str(PLAYER_ICON_PATH)), (TILE_SIZE, TILE_SIZE))
-	TestRPGWindow(size=START_SIZE, start_map_path=MAP_PATH, tickrate=TICK_RATE, player_icon=player_icon, tile_size=TILE_SIZE).run()
+	enemy_icon = pygame.transform.smoothscale(pygame.image.load(str(ENEMY_ICON_PATH)), (TILE_SIZE, TILE_SIZE))
+	TestRPGWindow(size=START_SIZE, start_map_path=MAP_PATH, tickrate=TICK_RATE, player_icon=player_icon, enemy_icon=enemy_icon, tile_size=TILE_SIZE).run()

@@ -1,4 +1,4 @@
-from random import choice
+from random import choice, random
 from typing import Optional, Tuple
 
 import pygame
@@ -11,8 +11,47 @@ from pygame_plugin_system.tmx import TMXWindow
 __all__ = ['RPGWindow']
 
 
+class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
+	def __init__(self, *, player_icon: pygame.Surface, enemy_icon: pygame.Surface, tile_size: int = 1, **kwargs):
+		self.player_icon = player_icon
+		self.enemy_icon = enemy_icon
+		self.tile_size = tile_size
+		
+		self.sprites = tmx.SpriteLayer()
+		self.start_cell = (0, 0)
+		super().__init__(player_icon=player_icon, tile_size=tile_size, **kwargs)
+		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), window=self, location=self.start_cell)
+	
+	def set_tilemap(self, *, map_path: str, start_cell: Optional[Tuple[int, int]] = None, **kwargs):
+		super().set_tilemap(map_path=map_path)
+		
+		self.tilemap.layers.append(self.sprites)
+		
+		if start_cell is None:
+			start_cell = choice(self.tilemap.layers['triggers'].match(isStart='true'))
+			start_cell = start_cell.px, start_cell.py
+		
+		self.tilemap.set_focus(*start_cell, force=True)
+		
+		try:
+			player = self.player
+		except AttributeError:
+			self.start_cell = start_cell
+		else:
+			player.rect.x, player.rect.y = start_cell
+	
+	def main_loop(self, screen: pygame.Surface):
+		super().main_loop(screen)
+	
+	def on_event(self, event: pygame.event.EventType):
+		super().on_event(event)
+	
+	def spawn(self, enemy: 'Enemy'):
+		self.sprites.add(enemy)
+
+
 class Player(pygame.sprite.Sprite):
-	def __init__(self, *groups, image, location, window):
+	def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow):
 		super().__init__(*groups)
 		self.image = image
 		self.rect = pygame.rect.Rect(location, self.image.get_size())
@@ -42,9 +81,20 @@ class Player(pygame.sprite.Sprite):
 			if self.rect.top <= obj.bottom <= old.top and self.rect.left != obj.right and self.rect.right != obj.left:
 				self.rect.top = obj.bottom
 		
+		for obj in self.window.sprites:
+			if obj is not self:
+				if old.right <= obj.rect.left <= self.rect.right and self.rect.top != obj.rect.bottom and self.rect.bottom != obj.rect.top:
+					self.rect.right = obj.rect.left
+				if self.rect.left <= obj.rect.right <= old.left and self.rect.top != obj.rect.bottom and self.rect.bottom != obj.rect.top:
+					self.rect.left = obj.rect.right
+				if old.bottom <= obj.rect.top <= self.rect.bottom and self.rect.left != obj.rect.right and self.rect.right != obj.rect.left:
+					self.rect.bottom = obj.rect.top
+				if self.rect.top <= obj.rect.bottom <= old.top and self.rect.left != obj.rect.right and self.rect.right != obj.rect.left:
+					self.rect.top = obj.rect.bottom
+
 		tilemap = self.window.tilemap
 		window_rect = pygame.Rect(tilemap.view_x, tilemap.view_y, tilemap.px_width, tilemap.px_height)
-		
+		print(window_rect)
 		if window_rect.right <= self.rect.right:
 			self.rect.right = window_rect.right
 		if self.rect.left <= window_rect.left:
@@ -53,6 +103,12 @@ class Player(pygame.sprite.Sprite):
 			self.rect.bottom = window_rect.bottom
 		if self.rect.top <= window_rect.top:
 			self.rect.top = window_rect.top
+		
+		for area in self.window.tilemap.layers['triggers'].collide(self.rect, 'probEnemy'):
+			if old != self.rect and random() < float(area['probEnemy']):
+				enemy_rect = self.rect
+				self.rect = old
+				self.window.spawn(Enemy(image=self.window.enemy_icon, location=enemy_rect.topleft, window=self.window))
 		
 		entries = self.window.tilemap.layers['triggers'].collide(self.rect, 'destinationMap')
 		
@@ -63,36 +119,9 @@ class Player(pygame.sprite.Sprite):
 		self.window.tilemap.set_focus(self.rect.x, self.rect.y)
 
 
-class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
-	def __init__(self, *, player_icon: pygame.Surface, tile_size: int = 1, **kwargs):
-		self.player_icon = player_icon
-		self.tile_size = tile_size
-		
-		super().__init__(player_icon=player_icon, tile_size=tile_size, **kwargs)
-	
-	def set_tilemap(self, *, map_path: str, start_cell: Optional[Tuple[int, int]] = None, **kwargs):
-		# try:
-		# 	self.objects.remove(self.tilemap)
-		# except KeyError:
-		# 	pass
-		#
-		# self.tilemap.set_focus(start_cell.px, start_cell.py)
-		# self.objects.add(self.tilemap)
-		
-		super().set_tilemap(map_path=map_path)
-		
-		self.sprites = tmx.SpriteLayer()
-		self.tilemap.layers.append(self.sprites)
-		
-		if start_cell is None:
-			start_cell = choice(self.tilemap.layers['triggers'].match(isStart='true'))
-			start_cell = start_cell.px, start_cell.py
-		
-		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), location=start_cell, window=self)
-		self.tilemap.set_focus(*start_cell, force=True)
-	
-	def main_loop(self, screen: pygame.Surface):
-		super().main_loop(screen)
-	
-	def on_event(self, event: pygame.event.EventType):
-		super().on_event(event)
+class Enemy(pygame.sprite.Sprite):
+	def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow):
+		super().__init__(*groups)
+		self.image = image
+		self.rect = pygame.rect.Rect(location, self.image.get_size())
+		self.window = window
