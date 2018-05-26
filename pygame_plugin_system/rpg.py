@@ -12,7 +12,8 @@ __all__ = ['RPGWindow']
 
 
 class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
-	def __init__(self, *, player_icon: pygame.Surface, enemy_icon: pygame.Surface, tile_size: int = 1, enemy_hp: float, **kwargs):
+	def __init__(self, *, player_icon: pygame.Surface, enemy_icon: pygame.Surface, tile_size: int = 1, enemy_hp: float, font_size: int, font_color: Tuple[int, int, int], **kwargs):
+		self.font_color = font_color
 		self.enemy_hp = enemy_hp
 		self.player_icon = player_icon
 		self.enemy_icon = enemy_icon
@@ -22,6 +23,8 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
 		self.start_cell = (0, 0)
 		super().__init__(player_icon=player_icon, tile_size=tile_size, **kwargs)
 		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), window=self, location=self.start_cell)
+		
+		self.font = pygame.font.Font(None, font_size)
 	
 	def set_tilemap(self, *, map_path: str, start_cell: Optional[Tuple[int, int]] = None, **kwargs):
 		super().set_tilemap(map_path=map_path)
@@ -131,15 +134,21 @@ class Player(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
 	def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow, hp: float):
 		super().__init__(*groups)
-		self.image = image
+		self.original_image = image
+		self.image = image.copy()
 		self.rect = pygame.rect.Rect(location, self.image.get_size())
 		self.window = window
 		self.hp = hp
+		self.show_hp()
 	
 	def attack(self, damage: float):
-		print(self.hp, damage)
-		
 		self.hp -= damage
 		
 		if self.hp <= 0:
 			self.kill()
+		else:
+			self.show_hp()
+	
+	def show_hp(self):
+		self.image = self.original_image.copy()
+		self.image.blit(self.window.font.render(str(self.hp), True, self.window.font_color), (0, 0))
