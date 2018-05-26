@@ -23,6 +23,8 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
 		self.start_cell = (0, 0)
 		super().__init__(player_icon=player_icon, tile_size=tile_size, **kwargs)
 		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), window=self, location=self.start_cell, hp=player_hp)
+		
+		self.show_big_text('Hi!')
 	
 	def set_tilemap(self, *, map_path: str, start_cell: Optional[Tuple[int, int]] = None, **kwargs):
 		super().set_tilemap(map_path=map_path)
@@ -54,6 +56,14 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
 	def render_text(self, text: str, width: int, height: int) -> pygame.Surface:
 		size = min(width * 100 / pygame.font.Font(None, 100).size(text)[0], height)
 		return pygame.font.Font(None, int(size)).render(text, True, self.font_color)
+	
+	def show_big_text(self, text: str):
+		self.screen.blit(self.render_text(text, self.screen.get_rect().width, self.screen.get_rect().height), (0, 0))
+		pygame.display.flip()
+		
+		while not pygame.key.get_pressed()[pygame.K_RETURN]:
+			for event in iter(pygame.event.poll, pygame.event.Event(pygame.NOEVENT)):
+				self.on_event(event)
 
 
 class Player(pygame.sprite.Sprite):
@@ -94,7 +104,6 @@ class Player(pygame.sprite.Sprite):
 		
 		if self.rect != old:
 			for sprite in self.window.sprites:
-				
 				if sprite is not self:
 					sprite.tick()
 					if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right and (sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
@@ -169,6 +178,8 @@ class Enemy(pygame.sprite.Sprite):
 		
 		if self.hp <= 0:
 			self.kill()
+			self.window.main_loop(self.window.screen)
+			self.window.show_big_text('You killed an enemy!')
 		else:
 			self.show_hp()
 	
@@ -177,5 +188,6 @@ class Enemy(pygame.sprite.Sprite):
 		self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
 	
 	def tick(self):
-		if self.window.player.rect.colliderect(self.rect):
+		player_rect = self.window.player.rect
+		if ((player_rect.left == self.rect.right or player_rect.right == self.rect.left) and player_rect.top == self.rect.top and player_rect.bottom == self.rect.bottom) or ((player_rect.top == self.rect.bottom or player_rect.bottom == self.rect.top) and player_rect.left == self.rect.left and player_rect.right == self.rect.right):
 			self.window.player.attack(1)
