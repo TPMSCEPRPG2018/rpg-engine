@@ -72,29 +72,37 @@ class Player(pygame.sprite.Sprite):
 			self.rect.x += self.rect.width
 		
 		for obj in self.window.tilemap.layers['triggers'].collide(self.rect, 'isSolid'):
-			if old.right <= obj.left <= self.rect.right and self.rect.top != obj.bottom and self.rect.bottom != obj.top:
+			if old.right <= obj.left <= self.rect.right and (obj.top <= self.rect.top < obj.bottom or obj.top < self.rect.bottom <= obj.bottom):
 				self.rect.right = obj.left
-			if self.rect.left <= obj.right <= old.left and self.rect.top != obj.bottom and self.rect.bottom != obj.top:
+			if self.rect.left <= obj.right <= old.left and (obj.top <= self.rect.top < obj.bottom or obj.top < self.rect.bottom <= obj.bottom):
 				self.rect.left = obj.right
-			if old.bottom <= obj.top <= self.rect.bottom and self.rect.left != obj.right and self.rect.right != obj.left:
+			if old.bottom <= obj.top <= self.rect.bottom and (obj.left <= self.rect.left < obj.right or obj.left < self.rect.right <= obj.right):
 				self.rect.bottom = obj.top
-			if self.rect.top <= obj.bottom <= old.top and self.rect.left != obj.right and self.rect.right != obj.left:
+			if self.rect.top <= obj.bottom <= old.top and (obj.left <= self.rect.left < obj.right or obj.left < self.rect.right <= obj.right):
 				self.rect.top = obj.bottom
+		
+		# if old.right <= obj.left <= self.rect.right and self.rect.top != obj.bottom and self.rect.bottom != obj.top:
+		# 	self.rect.right = obj.left
+		# if self.rect.left <= obj.right <= old.left and self.rect.top != obj.bottom and self.rect.bottom != obj.top:
+		# 	self.rect.left = obj.right
+		# if old.bottom <= obj.top <= self.rect.bottom and self.rect.left != obj.right and self.rect.right != obj.left:
+		# 	self.rect.bottom = obj.top
+		# if self.rect.top <= obj.bottom <= old.top and self.rect.left != obj.right and self.rect.right != obj.left:
+		# 	self.rect.top = obj.bottom
 		
 		for obj in self.window.sprites:
 			if obj is not self:
-				if old.right <= obj.rect.left <= self.rect.right and self.rect.top != obj.rect.bottom and self.rect.bottom != obj.rect.top:
+				if old.right <= obj.rect.left <= self.rect.right and (obj.rect.top <= self.rect.top < obj.rect.bottom or obj.rect.top < self.rect.bottom <= obj.rect.bottom):
 					self.rect.right = obj.rect.left
-				if self.rect.left <= obj.rect.right <= old.left and self.rect.top != obj.rect.bottom and self.rect.bottom != obj.rect.top:
+				if self.rect.left <= obj.rect.right <= old.left and (obj.rect.top <= self.rect.top < obj.rect.bottom or obj.rect.top < self.rect.bottom <= obj.rect.bottom):
 					self.rect.left = obj.rect.right
-				if old.bottom <= obj.rect.top <= self.rect.bottom and self.rect.left != obj.rect.right and self.rect.right != obj.rect.left:
+				if old.bottom <= obj.rect.top <= self.rect.bottom and (obj.rect.left <= self.rect.left < obj.rect.right or obj.rect.left < self.rect.right <= obj.rect.right):
 					self.rect.bottom = obj.rect.top
-				if self.rect.top <= obj.rect.bottom <= old.top and self.rect.left != obj.rect.right and self.rect.right != obj.rect.left:
+				if self.rect.top <= obj.rect.bottom <= old.top and (obj.rect.left <= self.rect.left < obj.rect.right or obj.rect.left < self.rect.right <= obj.rect.right):
 					self.rect.top = obj.rect.bottom
-
+		
 		tilemap = self.window.tilemap
 		window_rect = pygame.Rect(tilemap.view_x, tilemap.view_y, tilemap.px_width, tilemap.px_height)
-		print(window_rect)
 		if window_rect.right <= self.rect.right:
 			self.rect.right = window_rect.right
 		if self.rect.left <= window_rect.left:
