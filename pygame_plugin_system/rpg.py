@@ -12,7 +12,7 @@ __all__ = ['RPGWindow']
 
 
 class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
-	def __init__(self, *, player_icon: pygame.Surface, enemy_icon: pygame.Surface, tile_size: int = 1, enemy_hp: float, font_size: int, font_color: Tuple[int, int, int], **kwargs):
+	def __init__(self, *, player_icon: pygame.Surface, enemy_icon: pygame.Surface, tile_size: int = 1, enemy_hp: float, player_hp: float, font_color: Tuple[int, int, int], **kwargs):
 		self.font_color = font_color
 		self.enemy_hp = enemy_hp
 		self.player_icon = player_icon
@@ -22,9 +22,7 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
 		self.sprites = tmx.SpriteLayer()
 		self.start_cell = (0, 0)
 		super().__init__(player_icon=player_icon, tile_size=tile_size, **kwargs)
-		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), window=self, location=self.start_cell)
-		
-		self.font = pygame.font.Font(None, font_size)
+		self.player = Player(self.sprites, image=self.player_icon.convert_alpha(), window=self, location=self.start_cell, hp=player_hp)
 	
 	def set_tilemap(self, *, map_path: str, start_cell: Optional[Tuple[int, int]] = None, **kwargs):
 		super().set_tilemap(map_path=map_path)
@@ -52,14 +50,21 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
 	
 	def spawn(self, enemy: 'Enemy'):
 		self.sprites.add(enemy)
+	
+	def render_text(self, text: str, width: int, height: int) -> pygame.Surface:
+		size = min(width * 100 / pygame.font.Font(None, 100).size(text)[0], height)
+		return pygame.font.Font(None, int(size)).render(text, True, self.font_color)
 
 
 class Player(pygame.sprite.Sprite):
-	def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow):
+	def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow, hp: float):
 		super().__init__(*groups)
-		self.image = image
+		self.original_image = image
+		self.image = image.copy()
 		self.rect = pygame.rect.Rect(location, self.image.get_size())
 		self.window = window
+		self.hp = hp
+		self.show_hp()
 	
 	def update(self, dt):
 		old = self.rect.copy()
@@ -87,20 +92,23 @@ class Player(pygame.sprite.Sprite):
 		
 		collisions = set()
 		
-		for sprite in self.window.sprites:
-			if sprite is not self:
-				if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right and (sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
-					collisions.add(sprite)
-					self.rect.right = sprite.rect.left
-				if self.rect.left <= sprite.rect.right <= old.left and old.left != self.rect.left and (sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
-					collisions.add(sprite)
-					self.rect.left = sprite.rect.right
-				if old.bottom <= sprite.rect.top <= self.rect.bottom and old.bottom != self.rect.bottom and (sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
-					collisions.add(sprite)
-					self.rect.bottom = sprite.rect.top
-				if self.rect.top <= sprite.rect.bottom <= old.top and old.top != self.rect.top and (sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
-					collisions.add(sprite)
-					self.rect.top = sprite.rect.bottom
+		if self.rect != old:
+			for sprite in self.window.sprites:
+				
+				if sprite is not self:
+					sprite.tick()
+					if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right and (sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
+						collisions.add(sprite)
+						self.rect.right = sprite.rect.left
+					if self.rect.left <= sprite.rect.right <= old.left and old.left != self.rect.left and (sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
+						collisions.add(sprite)
+						self.rect.left = sprite.rect.right
+					if old.bottom <= sprite.rect.top <= self.rect.bottom and old.bottom != self.rect.bottom and (sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
+						collisions.add(sprite)
+						self.rect.bottom = sprite.rect.top
+					if self.rect.top <= sprite.rect.bottom <= old.top and old.top != self.rect.top and (sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
+						collisions.add(sprite)
+						self.rect.top = sprite.rect.bottom
 		
 		for enemy in collisions:
 			enemy.attack(1)
@@ -129,6 +137,21 @@ class Player(pygame.sprite.Sprite):
 			self.window.set_tilemap(map_path=entry['destinationMap'], start_cell=(entry['destinationX'], entry['destinationY']))
 		
 		self.window.tilemap.set_focus(self.rect.x, self.rect.y)
+	
+	def attack(self, damage: float):
+		self.hp -= damage
+		
+		if self.hp <= 0:
+			pygame.display.quit()
+			pygame.quit()
+			print('You lose :(')
+			exit()
+		else:
+			self.show_hp()
+	
+	def show_hp(self):
+		self.image = self.original_image.copy()
+		self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -151,4 +174,8 @@ class Enemy(pygame.sprite.Sprite):
 	
 	def show_hp(self):
 		self.image = self.original_image.copy()
-		self.image.blit(self.window.font.render(str(self.hp), True, self.window.font_color), (0, 0))
+		self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
+	
+	def tick(self):
+		if self.window.player.rect.colliderect(self.rect):
+			self.window.player.attack(1)

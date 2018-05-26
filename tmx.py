@@ -488,17 +488,11 @@ visible: Whether the object is shown (1) or hidden (0). Defaults to 1.
 	
 	def intersects(self, x1, y1, x2, y2):
 		return Rect(x1, y1, x2 - x1, y2 - y1).colliderect(Rect(self.px, self.py, self.width, self.height))
-
-# if x2 > self.px and y2 > self.py and x1 < self.px + self.width and y1 < self.py + self.height:
-
-
-# 		# 	print(self.name)
-# 		# 	print(x2, self.px)
-# 		# 	print(y2, self.py)
-# 		# 	print(x1, self.px + self.width)
-# 		# 	print(y1, self.py + self.height)
-# 		#
-# 		# return x2 > self.px and y2 > self.py and x1 < self.px + self.width and y1 < self.py + self.height
+	
+	# return x2 > self.px and y2 > self.py and x1 < self.px + self.width and y1 < self.py + self.height
+	
+	def contains(self, x, y):
+		return self.px < x < self.px + self.width and self.py < y < self.py + self.height
 
 
 class ObjectLayer(BaseLayer):

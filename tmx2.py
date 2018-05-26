@@ -19,16 +19,20 @@ class RenderOrder(Enum):
 	LEFT_UP = auto()
 
 
-class SizeInTiles(int): pass
+class SizeInTiles(int):
+	pass
 
 
-class SizeInPixels(int): pass
+class SizeInPixels(int):
+	pass
 
 
-class LayerID(int): pass
+class LayerID(int):
+	pass
 
 
-class ObjectID(int): pass
+class ObjectID(int):
+	pass
 
 
 class Axis(Enum):
