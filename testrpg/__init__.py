@@ -8,7 +8,7 @@ from .constants import *
 
 class TestRPGWindow(RPGWindow):
 	def __init__(self, *, size, start_map_path, tickrate, player_icon, tile_size, **kwargs):
-		super().__init__(size=size, start_map_path=start_map_path, tickrate=tickrate, player_icon=player_icon, tile_size=tile_size, **kwargs)
+		super().__init__(size=size, start_map_path=start_map_path, tickrate=tickrate, player_icon=player_icon, tile_size=tile_size, enemy_hp=ENEMY_HP, **kwargs)
 
 
 def main():

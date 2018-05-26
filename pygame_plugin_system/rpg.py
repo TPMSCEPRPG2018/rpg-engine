@@ -12,7 +12,8 @@ __all__ = ['RPGWindow']
 
 
 class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
-	def __init__(self, *, player_icon: pygame.Surface, enemy_icon: pygame.Surface, tile_size: int = 1, **kwargs):
+	def __init__(self, *, player_icon: pygame.Surface, enemy_icon: pygame.Surface, tile_size: int = 1, enemy_hp: float, **kwargs):
+		self.enemy_hp = enemy_hp
 		self.player_icon = player_icon
 		self.enemy_icon = enemy_icon
 		self.tile_size = tile_size
@@ -81,25 +82,25 @@ class Player(pygame.sprite.Sprite):
 			if self.rect.top <= obj.bottom <= old.top and (obj.left <= self.rect.left < obj.right or obj.left < self.rect.right <= obj.right):
 				self.rect.top = obj.bottom
 		
-		# if old.right <= obj.left <= self.rect.right and self.rect.top != obj.bottom and self.rect.bottom != obj.top:
-		# 	self.rect.right = obj.left
-		# if self.rect.left <= obj.right <= old.left and self.rect.top != obj.bottom and self.rect.bottom != obj.top:
-		# 	self.rect.left = obj.right
-		# if old.bottom <= obj.top <= self.rect.bottom and self.rect.left != obj.right and self.rect.right != obj.left:
-		# 	self.rect.bottom = obj.top
-		# if self.rect.top <= obj.bottom <= old.top and self.rect.left != obj.right and self.rect.right != obj.left:
-		# 	self.rect.top = obj.bottom
+		collisions = set()
 		
-		for obj in self.window.sprites:
-			if obj is not self:
-				if old.right <= obj.rect.left <= self.rect.right and (obj.rect.top <= self.rect.top < obj.rect.bottom or obj.rect.top < self.rect.bottom <= obj.rect.bottom):
-					self.rect.right = obj.rect.left
-				if self.rect.left <= obj.rect.right <= old.left and (obj.rect.top <= self.rect.top < obj.rect.bottom or obj.rect.top < self.rect.bottom <= obj.rect.bottom):
-					self.rect.left = obj.rect.right
-				if old.bottom <= obj.rect.top <= self.rect.bottom and (obj.rect.left <= self.rect.left < obj.rect.right or obj.rect.left < self.rect.right <= obj.rect.right):
-					self.rect.bottom = obj.rect.top
-				if self.rect.top <= obj.rect.bottom <= old.top and (obj.rect.left <= self.rect.left < obj.rect.right or obj.rect.left < self.rect.right <= obj.rect.right):
-					self.rect.top = obj.rect.bottom
+		for sprite in self.window.sprites:
+			if sprite is not self:
+				if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right and (sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
+					collisions.add(sprite)
+					self.rect.right = sprite.rect.left
+				if self.rect.left <= sprite.rect.right <= old.left and old.left != self.rect.left and (sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
+					collisions.add(sprite)
+					self.rect.left = sprite.rect.right
+				if old.bottom <= sprite.rect.top <= self.rect.bottom and old.bottom != self.rect.bottom and (sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
+					collisions.add(sprite)
+					self.rect.bottom = sprite.rect.top
+				if self.rect.top <= sprite.rect.bottom <= old.top and old.top != self.rect.top and (sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
+					collisions.add(sprite)
+					self.rect.top = sprite.rect.bottom
+		
+		for enemy in collisions:
+			enemy.attack(1)
 		
 		tilemap = self.window.tilemap
 		window_rect = pygame.Rect(tilemap.view_x, tilemap.view_y, tilemap.px_width, tilemap.px_height)
@@ -116,7 +117,7 @@ class Player(pygame.sprite.Sprite):
 			if old != self.rect and random() < float(area['probEnemy']):
 				enemy_rect = self.rect
 				self.rect = old
-				self.window.spawn(Enemy(image=self.window.enemy_icon, location=enemy_rect.topleft, window=self.window))
+				self.window.spawn(Enemy(image=self.window.enemy_icon, location=enemy_rect.topleft, window=self.window, hp=self.window.enemy_hp))
 		
 		entries = self.window.tilemap.layers['triggers'].collide(self.rect, 'destinationMap')
 		
@@ -128,8 +129,17 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-	def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow):
+	def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow, hp: float):
 		super().__init__(*groups)
 		self.image = image
 		self.rect = pygame.rect.Rect(location, self.image.get_size())
 		self.window = window
+		self.hp = hp
+	
+	def attack(self, damage: float):
+		print(self.hp, damage)
+		
+		self.hp -= damage
+		
+		if self.hp <= 0:
+			self.kill()
