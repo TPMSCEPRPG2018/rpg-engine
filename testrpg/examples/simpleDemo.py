@@ -2,6 +2,7 @@
 exec(open("importer.py").read())  # Add tmx to path (ignore this)
 
 import pygame
+
 import tmx
 
 # Initialize pygame and create a 500x500 display 
@@ -18,19 +19,19 @@ tilemap.set_focus(0, 0)
 clock = pygame.time.Clock()
 
 while 1:
-	dt = clock.tick(30)
-	
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			exit()
-	
-	# tilemap.update calls the update method on each layer in the map.
-	# The update method can be customized for each layer to include logic
-	# for animating sprite positions, and detecting collisions .
-	tilemap.update(dt)
-	# Fill the screen with an R,G,B color to erase the previous drawings
-	screen.fill((0, 0, 0))
-	# Draw all layers of the tilemap to the screen.
-	tilemap.draw(screen)
-	# Refresh the display window.
-	pygame.display.flip()
+    dt = clock.tick(30)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            exit()
+
+    # tilemap.update calls the update method on each layer in the map.
+    # The update method can be customized for each layer to include logic
+    # for animating sprite positions, and detecting collisions .
+    tilemap.update(dt)
+    # Fill the screen with an R,G,B color to erase the previous drawings
+    screen.fill((0, 0, 0))
+    # Draw all layers of the tilemap to the screen.
+    tilemap.draw(screen)
+    # Refresh the display window.
+    pygame.display.flip()
