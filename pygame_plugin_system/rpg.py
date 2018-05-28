@@ -80,72 +80,67 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
             for event in iter(pygame.event.poll, pygame.event.Event(pygame.NOEVENT)):
                 self.on_event(event)
 
-    def can_move(self, sprite: pygame.sprite.Sprite, location: pygame.Rect):
-        for obj in self.tilemap.layers['triggers'].collide(location, 'isSolid'):
-            if location.left <= obj.left <= location.right:
-                return False
-        
-            if location.left <= obj.right <= location.right:
-                return False
-        
-            if location.top <= obj.top <= location.bottom:
-                return False
-        
-            if location.top <= obj.bottom <= location.bottom:
-                return False
-    
-        window_rect = pygame.Rect(self.tilemap.view_x, self.tilemap.view_y, self.tilemap.px_width,
-                                  self.tilemap.px_height)
-        if window_rect.right < location.right:
+    def collide_rects(self, rect1, rect2):
+        if rect1.right < rect2.left:
             return False
     
-        if location.left < window_rect.left:
+        if rect2.right < rect1.left:
             return False
     
-        if window_rect.bottom < location.bottom:
+        if rect1.bottom < rect2.top:
             return False
     
-        if location.top < window_rect.top:
+        if rect2.bottom < rect1.top:
             return False
     
         return True
 
+    def collide_border(self, location):
+        window_rect = pygame.Rect(self.tilemap.view_x, self.tilemap.view_y, self.tilemap.px_width,
+                                  self.tilemap.px_height)
+        if window_rect.right < location.right:
+            return False
+        if window_rect.left > location.left:
+            return False
+        if window_rect.bottom < location.bottom:
+            return False
+        if window_rect.top > location.top:
+            return False
+        return True
+
     def collide_sprite(self, sprite1, old):
-    
         collisions = set()
-    
+
         for sprite2 in self.sprites:
             if sprite2 is not sprite1:
-                if sprite2.rect.top <= sprite1.rect.top < sprite2.rect.bottom or sprite2.rect.top < sprite1.rect.bottom <= sprite2.rect.bottom:
-                    if old.right <= sprite2.rect.left <= sprite1.rect.right:
-                        collisions.add(sprite2)
-                        sprite1.rect.right = sprite2.rect.left
-                
-                    if sprite1.rect.left <= sprite2.rect.right <= old.left:
-                        collisions.add(sprite2)
-                        sprite1.rect.left = sprite2.rect.right
-                if sprite2.rect.left <= sprite1.rect.left < sprite2.rect.right or sprite2.rect.left < sprite1.rect.right <= sprite2.rect.right:
-                    if old.bottom <= sprite2.rect.top <= sprite1.rect.bottom:
-                        collisions.add(sprite2)
-                        sprite1.rect.bottom = sprite2.rect.top
-                
-                    if sprite1.rect.top <= sprite2.rect.bottom <= old.top:
-                        collisions.add(sprite2)
-                        sprite1.rect.top = sprite2.rect.bottom
-    
-        print(collisions)
+                if self.collide_rects(sprite1.rect, sprite2.rect):
+                    collisions.add(sprite2)
+        
         return collisions
 
+    def can_move(self, location: pygame.Rect):
+        for obj in self.tilemap.layers['triggers'].collide(location, 'isSolid'):
+            if self.collide_rects(location, obj):
+                return False
+    
+        return self.collide_border(location)
 
-# class Entity(pygame.sprite.Sprite):
-#     def __init__(self, *groups, images: Dict[Tuple[Direction, Foot], pygame.Surface], location: Tuple[int, int], window: RPGWindow, hp: float):
-#         super().__init__(*groups)
-#         self.images = images
-#         self.image = images[self.direction, self.foot]
-#         self.rect = pygame.rect.Rect(location, self.image.get_size())
-#         self.window = window
-#         self.hp = hp
-#         self.show_hp()
+
+class Entity(pygame.sprite.Sprite):
+    def __init__(self, *groups, location: Tuple[int, int], window: RPGWindow, hp: float):
+        super().__init__(*groups)
+        self.image = self.get_image()
+        self.rect = pygame.rect.Rect(location, self.image.get_size())
+        self.window = window
+        self.hp = hp
+        self.show_hp()
+    
+    def show_hp(self):
+        self.image = self.get_image()
+        self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
+    
+    def get_image(self):
+        """Override this and return the image to display."""
 
 
 class Player(pygame.sprite.Sprite):
@@ -185,7 +180,7 @@ class Player(pygame.sprite.Sprite):
             self.animate_walk()
             new.x += self.rect.width
 
-        if self.window.can_move(self, new):
+        if self.window.can_move(new):
             self.rect = new
         else:
             self.rect = old
@@ -200,7 +195,7 @@ class Player(pygame.sprite.Sprite):
                         if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right:
                             collisions.add(sprite)
                             self.rect.right = sprite.rect.left
-        
+
                         if self.rect.left <= sprite.rect.right <= old.left and old.left != self.rect.left:
                             collisions.add(sprite)
                             self.rect.left = sprite.rect.right
@@ -208,12 +203,12 @@ class Player(pygame.sprite.Sprite):
                         if old.bottom <= sprite.rect.top <= self.rect.bottom and old.bottom != self.rect.bottom:
                             collisions.add(sprite)
                             self.rect.bottom = sprite.rect.top
-        
+
                         if self.rect.top <= sprite.rect.bottom <= old.top and old.top != self.rect.top:
                             collisions.add(sprite)
                             self.rect.top = sprite.rect.bottom
-        
-        for enemy in collisions:
+
+        for enemy in self.window.collide_sprite(self, old):
             enemy.attack(1)
 
         for area in self.window.tilemap.layers['triggers'].collide(self.rect, 'probEnemy'):
@@ -283,15 +278,15 @@ class Enemy(pygame.sprite.Sprite):
         player_rect = self.window.player.rect
 
         return {
-            Direction.LEFT : (self.rect.left - player_rect.right) / self.rect.width,
+            Direction.LEFT:  (self.rect.left - player_rect.right) / self.rect.width,
             Direction.RIGHT: (player_rect.left - self.rect.right) / self.rect.width,
-            Direction.UP   : (self.rect.top - player_rect.bottom) / self.rect.height,
-            Direction.DOWN : (player_rect.top - self.rect.bottom) / self.rect.height
+            Direction.UP:    (self.rect.top - player_rect.bottom) / self.rect.height,
+            Direction.DOWN:  (player_rect.top - self.rect.bottom) / self.rect.height
         }
 
     def move(self, direction: Direction, distance: int = 1):
         rect = self.rect.copy()
-    
+
         if direction == Direction.UP:
             rect.y -= self.rect.height * distance
         elif direction == Direction.DOWN:
@@ -300,12 +295,12 @@ class Enemy(pygame.sprite.Sprite):
             rect.x -= self.rect.width * distance
         elif direction == Direction.RIGHT:
             rect.x += self.rect.width * distance
-    
+
         return rect
 
     def tick(self):
         player_distances = self.get_player_distances()
-    
+
         if 0 in player_distances.values() and -1 in player_distances.values():
             self.window.player.attack(1)
         else:
@@ -313,8 +308,8 @@ class Enemy(pygame.sprite.Sprite):
                 self.rect = self.move(
                     max(
                         ((direction, distance) for direction, distance in player_distances.items() if
-                         self.window.can_move(self, self.move(direction)) and not self.window.collide_sprite(self,
-                                                                                                             self.rect)),
+                         self.window.can_move(self.move(direction)) and not self.window.collide_sprite(self,
+                                                                                                       self.rect)),
                         key=itemgetter(1)
                     )[0]
                 )
