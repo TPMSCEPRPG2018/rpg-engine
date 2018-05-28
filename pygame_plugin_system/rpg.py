@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from operator import itemgetter
 from random import choice, random
 from typing import Dict, Optional, Tuple
 
@@ -79,6 +80,73 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
             for event in iter(pygame.event.poll, pygame.event.Event(pygame.NOEVENT)):
                 self.on_event(event)
 
+    def can_move(self, sprite: pygame.sprite.Sprite, location: pygame.Rect):
+        for obj in self.tilemap.layers['triggers'].collide(location, 'isSolid'):
+            if location.left <= obj.left <= location.right:
+                return False
+        
+            if location.left <= obj.right <= location.right:
+                return False
+        
+            if location.top <= obj.top <= location.bottom:
+                return False
+        
+            if location.top <= obj.bottom <= location.bottom:
+                return False
+    
+        window_rect = pygame.Rect(self.tilemap.view_x, self.tilemap.view_y, self.tilemap.px_width,
+                                  self.tilemap.px_height)
+        if window_rect.right < location.right:
+            return False
+    
+        if location.left < window_rect.left:
+            return False
+    
+        if window_rect.bottom < location.bottom:
+            return False
+    
+        if location.top < window_rect.top:
+            return False
+    
+        return True
+
+    def collide_sprite(self, sprite1, old):
+    
+        collisions = set()
+    
+        for sprite2 in self.sprites:
+            if sprite2 is not sprite1:
+                if sprite2.rect.top <= sprite1.rect.top < sprite2.rect.bottom or sprite2.rect.top < sprite1.rect.bottom <= sprite2.rect.bottom:
+                    if old.right <= sprite2.rect.left <= sprite1.rect.right:
+                        collisions.add(sprite2)
+                        sprite1.rect.right = sprite2.rect.left
+                
+                    if sprite1.rect.left <= sprite2.rect.right <= old.left:
+                        collisions.add(sprite2)
+                        sprite1.rect.left = sprite2.rect.right
+                if sprite2.rect.left <= sprite1.rect.left < sprite2.rect.right or sprite2.rect.left < sprite1.rect.right <= sprite2.rect.right:
+                    if old.bottom <= sprite2.rect.top <= sprite1.rect.bottom:
+                        collisions.add(sprite2)
+                        sprite1.rect.bottom = sprite2.rect.top
+                
+                    if sprite1.rect.top <= sprite2.rect.bottom <= old.top:
+                        collisions.add(sprite2)
+                        sprite1.rect.top = sprite2.rect.bottom
+    
+        print(collisions)
+        return collisions
+
+
+# class Entity(pygame.sprite.Sprite):
+#     def __init__(self, *groups, images: Dict[Tuple[Direction, Foot], pygame.Surface], location: Tuple[int, int], window: RPGWindow, hp: float):
+#         super().__init__(*groups)
+#         self.images = images
+#         self.image = images[self.direction, self.foot]
+#         self.rect = pygame.rect.Rect(location, self.image.get_size())
+#         self.window = window
+#         self.hp = hp
+#         self.show_hp()
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, *groups, images: Dict[Tuple[Direction, Foot], pygame.Surface], location: Tuple[int, int],
@@ -96,76 +164,57 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, dt):
         old = self.rect.copy()
-
+        new = self.rect.copy()
+        
         key = pygame.key.get_pressed()
 
         if key[pygame.K_UP]:
-            self.rect.y -= self.rect.height
             self.direction = Direction.UP
             self.animate_walk()
+            new.y -= self.rect.height
         if key[pygame.K_DOWN]:
-            self.rect.y += self.rect.height
             self.direction = Direction.DOWN
             self.animate_walk()
+            new.y += self.rect.height
         if key[pygame.K_LEFT]:
-            self.rect.x -= self.rect.width
             self.direction = Direction.LEFT
             self.animate_walk()
+            new.x -= self.rect.width
         if key[pygame.K_RIGHT]:
-            self.rect.x += self.rect.width
             self.direction = Direction.RIGHT
             self.animate_walk()
+            new.x += self.rect.width
 
-        for obj in self.window.tilemap.layers['triggers'].collide(self.rect, 'isSolid'):
-            if old.right <= obj.left <= self.rect.right and (
-                    obj.top <= self.rect.top < obj.bottom or obj.top < self.rect.bottom <= obj.bottom):
-                self.rect.right = obj.left
-            if self.rect.left <= obj.right <= old.left and (
-                    obj.top <= self.rect.top < obj.bottom or obj.top < self.rect.bottom <= obj.bottom):
-                self.rect.left = obj.right
-            if old.bottom <= obj.top <= self.rect.bottom and (
-                    obj.left <= self.rect.left < obj.right or obj.left < self.rect.right <= obj.right):
-                self.rect.bottom = obj.top
-            if self.rect.top <= obj.bottom <= old.top and (
-                    obj.left <= self.rect.left < obj.right or obj.left < self.rect.right <= obj.right):
-                self.rect.top = obj.bottom
-
+        if self.window.can_move(self, new):
+            self.rect = new
+        else:
+            self.rect = old
+        
         collisions = set()
 
         for sprite in self.window.sprites:
             if sprite is not self:
                 sprite.tick()
                 if self.rect != old:
-                    if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right and (
-                            sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
-                        collisions.add(sprite)
-                        self.rect.right = sprite.rect.left
-                    if self.rect.left <= sprite.rect.right <= old.left and old.left != self.rect.left and (
-                            sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom):
-                        collisions.add(sprite)
-                        self.rect.left = sprite.rect.right
-                    if old.bottom <= sprite.rect.top <= self.rect.bottom and old.bottom != self.rect.bottom and (
-                            sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
-                        collisions.add(sprite)
-                        self.rect.bottom = sprite.rect.top
-                    if self.rect.top <= sprite.rect.bottom <= old.top and old.top != self.rect.top and (
-                            sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right):
-                        collisions.add(sprite)
-                        self.rect.top = sprite.rect.bottom
-
+                    if sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom:
+                        if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right:
+                            collisions.add(sprite)
+                            self.rect.right = sprite.rect.left
+        
+                        if self.rect.left <= sprite.rect.right <= old.left and old.left != self.rect.left:
+                            collisions.add(sprite)
+                            self.rect.left = sprite.rect.right
+                    if sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right:
+                        if old.bottom <= sprite.rect.top <= self.rect.bottom and old.bottom != self.rect.bottom:
+                            collisions.add(sprite)
+                            self.rect.bottom = sprite.rect.top
+        
+                        if self.rect.top <= sprite.rect.bottom <= old.top and old.top != self.rect.top:
+                            collisions.add(sprite)
+                            self.rect.top = sprite.rect.bottom
+        
         for enemy in collisions:
             enemy.attack(1)
-
-        tilemap = self.window.tilemap
-        window_rect = pygame.Rect(tilemap.view_x, tilemap.view_y, tilemap.px_width, tilemap.px_height)
-        if window_rect.right <= self.rect.right:
-            self.rect.right = window_rect.right
-        if self.rect.left <= window_rect.left:
-            self.rect.left = window_rect.left
-        if window_rect.bottom <= self.rect.bottom:
-            self.rect.bottom = window_rect.bottom
-        if self.rect.top <= window_rect.top:
-            self.rect.top = window_rect.top
 
         for area in self.window.tilemap.layers['triggers'].collide(self.rect, 'probEnemy'):
             if old != self.rect and random() < float(area['probEnemy']):
@@ -230,17 +279,44 @@ class Enemy(pygame.sprite.Sprite):
         self.image = self.original_image.copy()
         self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
 
-    def tick(self):
+    def get_player_distances(self):
         player_rect = self.window.player.rect
-        if (
-                (
-                    (player_rect.left == self.rect.right or player_rect.right == self.rect.left)
-                    and player_rect.top == self.rect.top
-                    and player_rect.bottom == self.rect.bottom
-                ) or (
-                    (player_rect.top == self.rect.bottom or player_rect.bottom == self.rect.top)
-                    and player_rect.left == self.rect.left
-                    and player_rect.right == self.rect.right
-                )
-        ):
+
+        return {
+            Direction.LEFT : (self.rect.left - player_rect.right) / self.rect.width,
+            Direction.RIGHT: (player_rect.left - self.rect.right) / self.rect.width,
+            Direction.UP   : (self.rect.top - player_rect.bottom) / self.rect.height,
+            Direction.DOWN : (player_rect.top - self.rect.bottom) / self.rect.height
+        }
+
+    def move(self, direction: Direction, distance: int = 1):
+        rect = self.rect.copy()
+    
+        if direction == Direction.UP:
+            rect.y -= self.rect.height * distance
+        elif direction == Direction.DOWN:
+            rect.y += self.rect.height * distance
+        elif direction == Direction.LEFT:
+            rect.x -= self.rect.width * distance
+        elif direction == Direction.RIGHT:
+            rect.x += self.rect.width * distance
+    
+        return rect
+
+    def tick(self):
+        player_distances = self.get_player_distances()
+    
+        if 0 in player_distances.values() and -1 in player_distances.values():
             self.window.player.attack(1)
+        else:
+            try:
+                self.rect = self.move(
+                    max(
+                        ((direction, distance) for direction, distance in player_distances.items() if
+                         self.window.can_move(self, self.move(direction)) and not self.window.collide_sprite(self,
+                                                                                                             self.rect)),
+                        key=itemgetter(1)
+                    )[0]
+                )
+            except ValueError:
+                pass  # If it's impossible to move, don't move.
