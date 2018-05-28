@@ -10,9 +10,8 @@ RESOURCES_DIR = BASE_DIR / 'resources'
 
 BALL_PATH = RESOURCES_DIR / 'intro_ball.gif'
 MAP_PATH = RESOURCES_DIR / 'outside.tmx'
-PLAYER_ICON_PATH = RESOURCES_DIR / 'smiley.png'
+PLAYER_ICON_DIR = RESOURCES_DIR / 'player_icons'
 ENEMY_ICON_PATH = RESOURCES_DIR / 'enemy.png'
 
 PLAYER_HP = 100
 ENEMY_HP = 10
-
