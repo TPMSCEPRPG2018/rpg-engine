@@ -108,7 +108,7 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
             return False
         return True
 
-    def collide_sprite(self, sprite1, old):
+    def collide_sprite(self, sprite1):
         collisions = set()
 
         for sprite2 in self.sprites:
@@ -143,19 +143,17 @@ class Entity(pygame.sprite.Sprite):
         """Override this and return the image to display."""
 
 
-class Player(pygame.sprite.Sprite):
+class Player(Entity):
     def __init__(self, *groups, images: Dict[Tuple[Direction, Foot], pygame.Surface], location: Tuple[int, int],
                  window: RPGWindow, hp: float):
         self.direction = Direction.UP
         self.foot = Foot.LEFT
-
-        super().__init__(*groups)
         self.images = images
-        self.image = images[self.direction, self.foot]
-        self.rect = pygame.rect.Rect(location, self.image.get_size())
-        self.window = window
-        self.hp = hp
-        self.show_hp()
+
+        super().__init__(*groups, location=location, window=window, hp=hp)
+    
+    def get_image(self):
+        return self.images[self.direction, self.foot].copy()
 
     def update(self, dt):
         old = self.rect.copy()
@@ -182,34 +180,15 @@ class Player(pygame.sprite.Sprite):
 
         if self.window.can_move(new):
             self.rect = new
-        else:
-            self.rect = old
-        
-        collisions = set()
 
-        for sprite in self.window.sprites:
-            if sprite is not self:
-                sprite.tick()
-                if self.rect != old:
-                    if sprite.rect.top <= self.rect.top < sprite.rect.bottom or sprite.rect.top < self.rect.bottom <= sprite.rect.bottom:
-                        if old.right <= sprite.rect.left <= self.rect.right and old.right != self.rect.right:
-                            collisions.add(sprite)
-                            self.rect.right = sprite.rect.left
-
-                        if self.rect.left <= sprite.rect.right <= old.left and old.left != self.rect.left:
-                            collisions.add(sprite)
-                            self.rect.left = sprite.rect.right
-                    if sprite.rect.left <= self.rect.left < sprite.rect.right or sprite.rect.left < self.rect.right <= sprite.rect.right:
-                        if old.bottom <= sprite.rect.top <= self.rect.bottom and old.bottom != self.rect.bottom:
-                            collisions.add(sprite)
-                            self.rect.bottom = sprite.rect.top
-
-                        if self.rect.top <= sprite.rect.bottom <= old.top and old.top != self.rect.top:
-                            collisions.add(sprite)
-                            self.rect.top = sprite.rect.bottom
-
-        for enemy in self.window.collide_sprite(self, old):
-            enemy.attack(1)
+        if old != new:
+            for enemy in self.window.collide_sprite(self):
+                self.rect = old
+                enemy.attack(1)
+    
+            for enemy in self.window.sprites:
+                if enemy is not self:
+                    enemy.tick()
 
         for area in self.window.tilemap.layers['triggers'].collide(self.rect, 'probEnemy'):
             if old != self.rect and random() < float(area['probEnemy']):
@@ -240,24 +219,19 @@ class Player(pygame.sprite.Sprite):
         else:
             self.show_hp()
 
-    def show_hp(self):
-        self.image = self.images[self.direction, self.foot].copy()
-        self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
-
     def animate_walk(self):
         self.foot = Foot.LEFT if self.foot == Foot.RIGHT else Foot.RIGHT
         self.show_hp()
 
 
-class Enemy(pygame.sprite.Sprite):
+class Enemy(Entity):
     def __init__(self, *groups, image: pygame.Surface, location: Tuple[int, int], window: RPGWindow, hp: float):
-        super().__init__(*groups)
         self.original_image = image
-        self.image = image.copy()
-        self.rect = pygame.rect.Rect(location, self.image.get_size())
-        self.window = window
-        self.hp = hp
-        self.show_hp()
+
+        super().__init__(*groups, location=location, window=window, hp=hp)
+
+    def get_image(self):
+        return self.original_image.copy()
 
     def attack(self, damage: float):
         self.hp -= damage
@@ -270,18 +244,14 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.show_hp()
 
-    def show_hp(self):
-        self.image = self.original_image.copy()
-        self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
-
     def get_player_distances(self):
         player_rect = self.window.player.rect
-
+        print(self.rect, player_rect)
         return {
-            Direction.LEFT:  (self.rect.left - player_rect.right) / self.rect.width,
-            Direction.RIGHT: (player_rect.left - self.rect.right) / self.rect.width,
-            Direction.UP:    (self.rect.top - player_rect.bottom) / self.rect.height,
-            Direction.DOWN:  (player_rect.top - self.rect.bottom) / self.rect.height
+            Direction.LEFT:  (self.rect.left - player_rect.right) // self.rect.width,
+            Direction.RIGHT: (player_rect.left - self.rect.right) // self.rect.width,
+            Direction.UP:    (self.rect.top - player_rect.bottom) // self.rect.height,
+            Direction.DOWN:  (player_rect.top - self.rect.bottom) // self.rect.height
         }
 
     def move(self, direction: Direction, distance: int = 1):
@@ -300,16 +270,16 @@ class Enemy(pygame.sprite.Sprite):
 
     def tick(self):
         player_distances = self.get_player_distances()
+        print(player_distances)
 
-        if 0 in player_distances.values() and -1 in player_distances.values():
+        if max(player_distances.values()) <= 0:
             self.window.player.attack(1)
         else:
             try:
                 self.rect = self.move(
                     max(
                         ((direction, distance) for direction, distance in player_distances.items() if
-                         self.window.can_move(self.move(direction)) and not self.window.collide_sprite(self,
-                                                                                                       self.rect)),
+                         self.window.can_move(self.move(direction)) and not self.window.collide_sprite(self)),
                         key=itemgetter(1)
                     )[0]
                 )
