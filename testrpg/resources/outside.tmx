@@ -247,4 +247,5 @@
             </properties>
         </object>
     </objectgroup>
+    <objectgroup name="people" visible="0"/>
 </map>
