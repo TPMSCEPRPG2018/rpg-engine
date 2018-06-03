@@ -3,7 +3,7 @@ from typing import Tuple
 import pygame
 
 import tmx
-from pygame_plugin_system.objects import ObjectWindow
+from plugin_objects import ObjectWindow
 
 
 class TMXWindow(ObjectWindow):

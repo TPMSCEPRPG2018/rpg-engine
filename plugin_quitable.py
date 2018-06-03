@@ -1,6 +1,6 @@
 import pygame
 
-from .core import Window
+from plugin_core import Window
 
 __all__ = ['QuitableWindow']
 
