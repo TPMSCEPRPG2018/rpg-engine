@@ -6,8 +6,8 @@ __all__ = ['QuitableWindow']
 
 
 class QuitableWindow(Window):
-	def on_event(self, event: pygame.event.EventType):
-		super().on_event(event)
-		
-		if event.type == pygame.QUIT:
-			exit()
+    def on_event(self, event: pygame.event.EventType):
+        super().on_event(event)
+
+        if event.type == pygame.QUIT:
+            exit()

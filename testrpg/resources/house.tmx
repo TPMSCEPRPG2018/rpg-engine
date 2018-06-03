@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.0" tiledversion="2018.04.18" orientation="orthogonal" renderorder="right-down" width="10" height="10"
-     tilewidth="32" tileheight="32" infinite="0" nextobjectid="9">
+     tilewidth="32" tileheight="32" infinite="0" nextobjectid="6">
     <tileset firstgid="1" source="indoors.tsx"/>
     <tileset firstgid="49" source="ground.tsx"/>
     <tileset firstgid="55" source="house.tsx"/>
@@ -230,11 +230,19 @@
                 <property name="isSolid" type="bool" value="true"/>
             </properties>
         </object>
-        <object id="8" name="start" x="160" y="192">
+        <object id="4" name="start" x="160" y="192">
             <properties>
                 <property name="isStart" type="bool" value="true"/>
             </properties>
             <point/>
+        </object>
+    </objectgroup>
+    <objectgroup name="people" visible="0" locked="1">
+        <object id="5" name="testPerson" x="32" y="160" width="32" height="32">
+            <properties>
+                <property name="icon" type="file" value="smiley.png"/>
+                <property name="text" type="string" value="Hello.&#10;Welcome to testrpgland!"/>
+            </properties>
         </object>
     </objectgroup>
 </map>
