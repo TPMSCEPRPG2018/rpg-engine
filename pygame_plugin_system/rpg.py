@@ -1,8 +1,7 @@
 from enum import Enum, auto
 from operator import itemgetter
 from random import choice, random
-from time import sleep
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import pygame
 
@@ -48,14 +47,14 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
     
     def set_tilemap(self, *, map_path: str, start_cell: Optional[Tuple[int, int]] = None, **kwargs):
         self.sprite_layer_stack[self.map_path] = self.sprites
-    
+
         self.map_path = map_path
-    
+
         try:
             self.sprites = self.sprite_layer_stack[map_path]
         except KeyError:
             self.sprites = tmx.SpriteLayer()
-    
+
         try:
             player = self.player
         except AttributeError:
@@ -64,17 +63,17 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
             self.sprites.add(player)
         
         super().set_tilemap(map_path=map_path)
-    
+
         self.init_talk_characters()
         
         self.tilemap.layers.append(self.sprites)
-    
+
         if start_cell is None:
             start_cell = choice(self.tilemap.layers['triggers'].match(isStart='true'))
             start_cell = start_cell.px, start_cell.py
-    
+
         self.tilemap.set_focus(*start_cell, force=True)
-    
+
         try:
             player = self.player
         except AttributeError:
@@ -85,45 +84,45 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
     def spawn(self, enemy: 'Enemy'):
         self.sprites.add(enemy)
 
-    def render_text(self, text: str, width: int, height: int) -> pygame.Surface:
-        size = min(width * 100 / pygame.font.Font(None, 100).size(text)[0], height)
-        return pygame.font.Font(None, int(size)).render(text, True, self.font_color)
+    def display_text(self, text: str, position: Tuple[int, int] = (0, 0)):
+        size = min(get_text_size(text, self.screen.get_rect().width), self.screen.get_rect().height)
+        self.screen.blit(render_text(text, size, self.font_color), position)
+        # self.screen.blit(render_text_old(text, self.screen.get_rect().width, self.screen.get_rect().height, self.font_color), position)
 
-    def display_text(self, text):
-        self.screen.blit(self.render_text(text, self.screen.get_rect().width, self.screen.get_rect().height), (0, 0))
-    
-    def show_big_text(self, text: str):
+    def show_big_text(self, text: str, position: Tuple[int, int] = (0, 0)):
         self.screen.fill(self.background)
-    
+
         for obj in self.objects:
             obj.draw(self.screen)
-    
-        self.display_text(text)
+
+        self.display_text(text, position)
         pygame.display.flip()
-    
+
         while not pygame.key.get_pressed()[pygame.K_RETURN]:
             for event in iter(pygame.event.poll, pygame.event.Event(pygame.NOEVENT)):
                 self.on_event(event)
-    
-        sleep(.1)
-        pygame.event.pump()
 
+        # prevent multiple messages accidentally being closed simultaneously
+        while pygame.key.get_pressed()[pygame.K_RETURN]:
+            for event in iter(pygame.event.poll, pygame.event.Event(pygame.NOEVENT)):
+                self.on_event(event)
+        
     @staticmethod
     def collide_rects(rect1, rect2):
         # Don't use pygame.Rect.collide_rect because of the *edge* case handling
-    
+
         if rect1.right <= rect2.left:
             return False
-    
+
         if rect2.right <= rect1.left:
             return False
-    
+
         if rect1.bottom <= rect2.top:
             return False
-    
+
         if rect2.bottom <= rect1.top:
             return False
-    
+
         return True
 
     def collide_border(self, location):
@@ -155,7 +154,7 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
         for obj in self.tilemap.layers['triggers'].collide(location, 'isSolid'):
             if self.collide_rects(location, obj):
                 return True
-    
+
         return False
     
     def can_move(self, location: pygame.Rect):
@@ -166,8 +165,8 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
             image = pygame.image.load(talk_character['icon'])
             image = image.convert_alpha()
             image = pygame.transform.smoothscale(image, (self.tile_size, self.tile_size))
-            self.sprites.add(
-                TalkCharacter(window=self, image=image, location=(talk_character.top, talk_character.left)))
+            self.sprites.add(TalkCharacter(window=self, image=image, location=(talk_character.top, talk_character.left),
+                                           text=talk_character['text']))
 
 
 class Entity(pygame.sprite.Sprite):
@@ -181,7 +180,21 @@ class Entity(pygame.sprite.Sprite):
     
     def show_hp(self):
         self.image = self.get_image()
-        self.image.blit(self.window.render_text(str(self.hp), self.rect.width, self.rect.height), (0, 0))
+        self.image.blit(
+            render_text(
+                str(self.hp),
+                min(
+                    get_text_size(
+                        str(self.hp),
+                        self.rect.width
+                    ),
+                    self.rect.height
+                ),
+                self.window.font_color
+            ),
+            (0, 0)
+        )
+        # self.image.blit(self.window.render_text_old(str(self.hp), self.rect.width, self.rect.height), (0, 0))
     
     def get_image(self):
         """Override this and return the image to display."""
@@ -229,7 +242,7 @@ class Player(Entity):
             for enemy in self.window.collide_sprite(self.rect):
                 self.rect = old
                 enemy.attack(1)
-    
+
             for enemy in self.window.sprites:
                 if enemy is not self:
                     enemy.tick()
@@ -324,15 +337,16 @@ class Enemy(Entity):
 
 
 class TalkCharacter(pygame.sprite.Sprite):
-    def __init__(self, *groups, location: Tuple[int, int], window: RPGWindow, image: pygame.Surface):
+    def __init__(self, *groups, location: Tuple[int, int], window: RPGWindow, image: pygame.Surface, text: str):
         super().__init__(*groups)
         self.image = image
         self.rect = pygame.rect.Rect(location, self.image.get_size())
         self.window = window
+        self.text = text
     
     def attack(self, damage: float):
-        self.window.show_big_text('Hi!')
-        self.window.show_big_text('Hello!')
+        for line in self.text.split('\n'):
+            self.window.show_big_text(line)
     
     def tick(self):
         pass
@@ -353,3 +367,18 @@ def get_distances(rect_1, rect_2):
 
 def is_adjacent(window, rect):
     return all(distance <= 0 for distance in get_distances(window.player.rect, rect).values())
+
+
+def render_text_old(text: str, width: int, height: int,
+                    color: Union[Tuple[int, int, int], pygame.Color]) -> pygame.Surface:
+    size = min(get_text_size(text, width), height)
+    return render_text(text, size, color)
+
+
+def render_text(text: str, size: int, color: Union[Tuple[int, int, int], pygame.Color]) -> pygame.Surface:
+    return pygame.font.Font(None, int(size)).render(text, True, color)
+
+
+def get_text_size(text: str, width: int, test_factor: int = 100000) -> int:
+    # if test_factor is too large, overflow may occur; if too small, precision will be lost
+    return int(width * test_factor / pygame.font.Font(None, test_factor).size(text)[0])

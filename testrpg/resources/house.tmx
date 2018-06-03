@@ -241,6 +241,7 @@
         <object id="5" name="testPerson" x="32" y="160" width="32" height="32">
             <properties>
                 <property name="icon" type="file" value="smiley.png"/>
+                <property name="text" type="string" value="Hello.&#10;Welcome to testrpgland!"/>
             </properties>
         </object>
     </objectgroup>
