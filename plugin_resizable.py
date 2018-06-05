@@ -2,7 +2,7 @@ from typing import Tuple
 
 import pygame
 
-from .core import Window
+from plugin_core import Window
 
 __all__ = ['ResizableWindow']
 

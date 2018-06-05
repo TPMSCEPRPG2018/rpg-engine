@@ -6,9 +6,9 @@ from typing import Dict, Optional, Tuple, Union
 import pygame
 
 import tmx
-from pygame_plugin_system.quitable import QuitableWindow
-from pygame_plugin_system.resizable import ResizableWindow
-from pygame_plugin_system.tmx import TMXWindow
+from plugin_quitable import QuitableWindow
+from plugin_resizable import ResizableWindow
+from plugin_tmx import TMXWindow
 
 __all__ = ['RPGWindow', 'Direction', 'Foot']
 
@@ -106,7 +106,7 @@ class RPGWindow(QuitableWindow, ResizableWindow, TMXWindow):
         while pygame.key.get_pressed()[pygame.K_RETURN]:
             for event in iter(pygame.event.poll, pygame.event.Event(pygame.NOEVENT)):
                 self.on_event(event)
-        
+
     @staticmethod
     def collide_rects(rect1, rect2):
         # Don't use pygame.Rect.collide_rect because of the *edge* case handling
